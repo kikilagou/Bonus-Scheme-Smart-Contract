@@ -40,7 +40,6 @@
 
 
   uint private ordersequence;
-  unit private recieptsequence;
   uint private partnersequence;
   uint private itemsequence;
 
@@ -56,10 +55,12 @@
   address public company;            
   address public employeeAddr;
   
-  event OrderPlaced();
-  event RecieptSent();
-  event OrderCancelled();
-  event EmployeePaid();
+  event OrderPlaced(uint orderno, address employee, address item, uint total);
+  event RecieptSent(uint orderno);
+  event OrderCancelled(uint orderno);
+  event EmployeePaid(address employee, uint amount);
+  event EmployeeRegistered(address employee);
+  event PaymentSent(address employee, uint orderno, uint amount);
   
   
   // The constructor 
@@ -69,7 +70,7 @@
 	}
   
   
-	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable checkFundsAvailiable {    
+	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable checkFundsAvailiable returns(bool) {    
 
     // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
     // Only the company is able to register new employees.
@@ -78,19 +79,26 @@
       revert(‘Employee not registered on bonus scheme.’);
     }
     
-    OrderPlaced();
+    ordersequence++;
+    
+    OrderPlaced(ordersequence, _employee, _item, items[_item].price);
     sendReciept(ordersequence);
-    RecieptSent();
-    takePayment(_employee);
+    RecieptSent(ordersequence);
+    pay(_employee, ordersequence, items[_item].price);
+    
+    return true;
   }
   
-  function sendReciept(uint _order) {
+  function sendReciept(uint _orderno) {
+  	
   	  
   }
   
   
-  function takePayment(address _employee, uint amaount) companyOnly {
+  function pay(address _employee, uint _orderno, uint amount) employeeOnly checkFundsAvailiable {
+  	require(orders[_orderno].init);
   	wallets[_employee] -= amount;
+    PaymentSent(_employee, _orderno, amount)
   }
   
   function reject() {
@@ -109,7 +117,7 @@
       payEmployee(_employee, _amount);
     }
     
-    EmployeePaid();
+    EmployeePaid(_employee, _amount);
   }
   
   function registerEmployee(address _employee) companyOnly {
