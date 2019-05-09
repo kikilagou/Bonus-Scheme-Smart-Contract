@@ -26,7 +26,7 @@
     bool registered;
 	}
 
-	struct Invoice {
+	struct Reciept {
 		uint orderno;
 	}
   
@@ -40,14 +40,14 @@
 
 
   uint private ordersequence;
-  unit private invoicesequence;
+  unit private recieptsequence;
   uint private partnersequence;
   uint private itemsequence;
 
 	// Storage variables 
   mapping (address => uint) wallets; 																													// HOLDS EACH EMPLOYEES WALLET BALANCE (ADDRESS USED TO REFER TO THE EMPLOYEE, UINT THEIR BALANCE)
   mapping (uint => Order) orders;
-	mapping (uint => Invoice) invoices; 
+	mapping (uint => Reciept) reciepts; 
 	mapping (uint => Partner) partners;
 	mapping (address => Employee) employees;
   mapping (address => Item[]) 																																// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
@@ -70,30 +70,24 @@
   
   
 	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable checkFundsAvailiable {    
-		//CONDITIONS FOR EXECUTING THE REST OF THE FUNCTION
-    // require(msg.sender == employeeAddr)  																											// Must be an employee making an order
-    // require(items[_item].exists) 																															// Item actually exists within the mapping
 
     // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
+    // Only the company is able to register new employees.
     if(!employees[_employee].registered) {
-    	registerEmployee(_employee);
+    	// registerEmployee(_employee);
+      revert(‘Employee not registered on bonus scheme.’);
     }
     
-    emp = employees[_employee]
-    
-    takePayment(_employee);
-    
     OrderPlaced();
-    
     sendReciept(ordersequence);
-
     RecieptSent();
+    takePayment(_employee);
   }
   
-  // TODO
   function sendReciept(uint _order) {
   	  
   }
+  
   
   function takePayment(address _employee, uint amaount) companyOnly {
   	wallets[_employee] -= amount;
