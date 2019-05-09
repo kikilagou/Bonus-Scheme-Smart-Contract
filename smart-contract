@@ -1,0 +1,185 @@
+	/// https://medium.com/quick-code/learning-solidity-with-a-simple-fundraising-smart-contract-2fad8b1d8b73
+  
+  // https://medium.com/@adeyemitoluhi
+  
+  contract BonusScheme {
+	
+  
+  // Defining a struct for an order request 
+  struct Order {
+    address employee;
+		address partner;
+		address item;
+		uint quantity;
+		uint price;
+    bool init;
+    bool completed;
+  }
+  
+  struct Employee {
+		address emp_addr;
+    bool registered;
+	}
+
+	struct Partner {
+		address parner_addr;
+    bool registered;
+	}
+
+	struct Invoice {
+		uint orderno;
+	}
+  
+  struct Item {
+		address item_addr;
+    bools exists;
+    address partner
+    uint price;
+    uint quantity;
+	}
+
+
+  uint private ordersequence;
+  unit private invoicesequence;
+  uint private partnersequence;
+  uint private itemsequence;
+
+	// Storage variables 
+  mapping (address => uint) wallets; 																													// HOLDS EACH EMPLOYEES WALLET BALANCE (ADDRESS USED TO REFER TO THE EMPLOYEE, UINT THEIR BALANCE)
+  mapping (uint => Order) orders;
+	mapping (uint => Invoice) invoices; 
+	mapping (uint => Partner) partners;
+	mapping (address => Employee) employees;
+  mapping (address => Item[]) 																																// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
+	mapping (uint => Item) items;
+
+  address public company;            
+  address public employeeAddr;
+  
+  event OrderPlaced();
+  event RecieptSent();
+  event OrderCancelled();
+  event EmployeePaid();
+  
+  
+  // The constructor 
+	function BonusScheme(address _empAddr) public {
+		company = msg.sender;																																			// THE COMPANY IS THE OWNER OF THE CONTRACT ... OR SHOULD THE EMPLOYEE BE THE CONTR
+		employeeAddr = _empAddr;
+	}
+  
+  
+	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable checkFundsAvailiable {    
+		//CONDITIONS FOR EXECUTING THE REST OF THE FUNCTION
+    // require(msg.sender == employeeAddr)  																											// Must be an employee making an order
+    // require(items[_item].exists) 																															// Item actually exists within the mapping
+
+    // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
+    if(!employees[_employee].registered) {
+    	registerEmployee(_employee);
+    }
+    
+    emp = employees[_employee]
+    
+    takePayment(_employee);
+    
+    OrderPlaced();
+    
+    sendReciept(ordersequence);
+
+    RecieptSent();
+  }
+  
+  // TODO
+  function sendReciept(uint _order) {
+  	  
+  }
+  
+  function takePayment(address _employee, uint amaount) companyOnly {
+  	wallets[_employee] -= amount;
+  }
+  
+  function reject() {
+  
+  }
+  
+  // AD HOc REWARD PAYMENT
+  function payEmployee(address _employee, uint _amount) companyOnly {
+    
+    require(_amount > 0);
+    
+    if(employees[_employee].registered) {
+      wallets[_employee] += _amount;    
+    } else {
+    	registerEmployees(_employee);
+      payEmployee(_employee, _amount);
+    }
+    
+    EmployeePaid();
+  }
+  
+  function registerEmployee(address _employee) companyOnly {
+    employees[_employee] = Employee(_employee, true);  
+  }
+  
+  function addPartner(address _partner) companyOnly {
+    if(!partners[_partner].registered) {
+      partners[_partner] = Partner(_partner, true);
+    }
+  }
+  
+  function addItem(address _item, address _partner, uint _price, uint _quantity) companyOnly {      
+    if(!items[_item].exists) {
+      items[_item] = Item(_item, true, _partner, _price, _quantity);
+    } else {
+    	items[_item].quantity += _quantity;
+    }
+  }
+  
+  // TODO
+  function removeEmployee(address _employee) companyOnly {
+  	delete user[someAddress];
+  }
+  
+  // TODO
+  function removePartner(address _employee) isPartner companyOnly {
+  	delete user[someAddress];
+  }
+  
+  // TODO
+  function removeItem(address _employee) companyOnly {
+  	delete user[someAddress];
+  }
+  
+  ///////////////
+  // MODIFIERS //
+  ///////////////
+  
+  modifier companyOnly {
+		// A function which can only be executed by the company
+  	require(msg.sender == company);
+   _;
+	}
+	
+  modifier employeeOnly {
+    // A function which can only be executed by an employee
+  	require(msg.sender == employeeAddr);
+   _;
+	}
+  
+  modifier checkItemAvailiable(address _item) {
+   require(items[_item].exists && items[_item].quantity > 0);
+   _;
+	}
+
+  modifier checkFundsAvailiable(address _employee, address _item) {
+   require(wallets[_employee] >= items[_item].price);
+   _;
+	}
+
+  modifier isPartner(address _partner) {
+   require(partners[_partner].registered);
+   _;
+	}
+
+}
