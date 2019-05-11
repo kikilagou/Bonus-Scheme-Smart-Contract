@@ -61,13 +61,13 @@
   uint private itemsequence;
 
 	// Storage variables 
-  // mapping (address => uint) wallets; 																													// HOLDS EACH EMPLOYEES WALLET BALANCE (ADDRESS USED TO REFER TO THE EMPLOYEE, UINT THEIR BALANCE)
+  mapping (address => uint) wallets; 																													// HOLDS EACH EMPLOYEES WALLET BALANCE (ADDRESS USED TO REFER TO THE EMPLOYEE, UINT THEIR BALANCE)
   mapping (uint => Order) orders;
-  // mapping (address => Reciept) reciepts; 
   mapping (address => Partner) partners;
   mapping (address => Employee) employees;
-  //mapping (address => Item[]) 																															// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
   mapping (uint => Item) items;
+  //mapping (address => Item[]) 																															// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
+  // mapping (address => Reciept) reciepts; 
 
   event EmployeeRegistered(address employee);
   event EmployeeRegistrationFailed(address employee);
@@ -104,7 +104,48 @@
 		company = msg.sender;																																			// THE COMPANY IS THE OWNER OF THE CONTRACT ... OR SHOULD THE EMPLOYEE BE THE CONTR
 		employeeAddr = _empAddr;
 	}
- 
+	
+    // function registerItem(address _item, address _partner, uint _price, uint _quantity) companyOnly public {      
+    //     if(!items[_item].exists) {
+    //       items[_item] = Item(_item, true, _partner, _price, _quantity);
+    //     } else {
+    //     	items[_item].quantity += _quantity;
+    //     }
+    //   }
+    
+    /**
+          @notice Register a new item. In order to register an item, the company that provides it must already be a partner otherwise product registration fails. Only the company can register a new item.
+          @param item_id - item ID
+          @param item_name - item name
+          @param description - item description
+          @param exists - boolean to signify item is registered
+          @param partner_addr - address of partner that supplied the item
+          @param price - item price
+          @param quantity - the number of this item that exists
+          @return success
+
+    */
+    function registerItem(string _item_name, bytes32 _description, bool _exists, address _partner_addr, uint _price, uint _quantity) companyOnly, isPartner(_partner_addr) returns (bool success) {
+        
+        itemsequence++;
+        var item = Item(itemsequence, _item_name, _description, _exists, _partner_addr, _price, _quantity);
+        
+        // Check that the item is not already registered, if it is fail. 
+        if (!items[itemsequence].exists && checkItemValidity(item)) {
+            
+            items[itemsequence] = item;
+            
+            ItemRegistered(itemsequence);
+
+            return true;
+        }
+
+        ItemRegistrationFailed(itemsequence);
+
+        return false;
+    }
+    
+    
 	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable(_item) checkFundsAvailiable(_employee, _item) returns(bool) {    
 
     // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
@@ -164,13 +205,7 @@
     }
   }
   
-  function addItem(address _item, address _partner, uint _price, uint _quantity) companyOnly public {      
-    if(!items[_item].exists) {
-      items[_item] = Item(_item, true, _partner, _price, _quantity);
-    } else {
-    	items[_item].quantity += _quantity;
-    }
-  }
+  
   
   // TODO
   function removeEmployee(address _employee) companyOnly employeeExists(_employee) public {
