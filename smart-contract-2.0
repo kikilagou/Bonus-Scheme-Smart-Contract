@@ -393,7 +393,6 @@
         @return success
 
     */
-
     function checkoutCart() employeeOnly returns (bool success) {
 
         Employee employee = employees[msg.sender];
@@ -409,15 +408,84 @@
 
         OrderFailed(msg.sender, wallets[employee], paymentTotal);
         return false;
+    }
+    
+    
+    /**
+          @notice Empties the shopping cart
+          @return success
+    */
+    function emptyCart() employeeOnly returns (bool success) {
+
+        Employee employee = employees[msg.sender];
+
+        employee.cart = Cart(new unit[](0), 0);
+
+        CartEmptied(employee.emp_addr);
+
+        return true;
+
+    }
+    
+    /**
+        @notice Returns a elements describing a product
+        @param id Product ID
+        @return (name, description, price, default_amount)
+    */
+    function getItem(uint _item_id) constant returns (string name, bytes description, uint price, uint partner, uint quantity) {
+    
+        require(items[_item_id].exists);
+       return (items[_item_id].name, items[_item_id].description, items[_item_id].price, items[_item_id].partner, items[_item_id].quantity);
+
+    }
+
+    /**
+        @notice Returns a list of product ids and a complete sum.
+        The caller address must be a registered customer.
+        @return (product_ids, complete_sum)
+    */
+    function getCart() constant returns (uint[] memory item_ids, uint total) {
+
+      Employee employee = employees[msg.sender];
+
+      uint len = employee.cart.items.length;
+
+      uint[] memory ids = new uint[](len);
+
+      for (uint i = 0; i < len; i++) {
+
+        ids[i] = items[i].item_id;
+
+      }
+
+      return (ids, employee.cart.total);
+
+    }
+    
+    /**
+          @notice Returns customer's balance
+          @return _balance Customer's balance
+
+    */
+    function getBalance() employeeOnly constant returns (uint _balance) {
+
+      return wallets[msg.sender];
+
+    }
+    
+    /**
+          @notice Returns stores's own balance
+          @return store_balance Store's current balance
+
+    */
+    function getCompanyBalance() companyOnly constant returns (uint) {
+
+      return company_funds;
 
     }
 
 
-    
-    
-    
-    
-    
+
     
     
     
@@ -509,8 +577,8 @@
    _;
 	}
 
-  modifier checkFundsAvailiable(address _employee, uint _item) {
-   require(wallets[_employee] >= items[_item].price);
+  modifier checkFundsAvailiable(address _employee, uint total) {
+   require(wallets[_employee] >= total;
    _;
 	}
 
