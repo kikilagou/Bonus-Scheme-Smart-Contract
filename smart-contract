@@ -1,39 +1,39 @@
-	/// https://medium.com/quick-code/learning-solidity-with-a-simple-fundraising-smart-contract-2fad8b1d8b73
+///// https://medium.com/quick-code/learning-solidity-with-a-simple-fundraising-smart-contract-2fad8b1d8b73
   
+  pragma solidity ^0.5.1;
   // https://medium.com/@adeyemitoluhi
-  
   contract BonusScheme {
 	
   
   // Defining a struct for an order request 
   struct Order {
     address employee;
-		address partner;
-		address item;
-		uint quantity;
-		uint price;
+	address partner;
+	address item;
+	uint quantity;
+	uint price;
     bool init;
     bool completed;
   }
   
   struct Employee {
-		address emp_addr;
+	address emp_addr;
     bool registered;
 	}
 
-	struct Partner {
-		address parner_addr;
+  struct Partner {
+	address parner_addr;
     bool registered;
 	}
 
-	struct Reciept {
-		uint orderno;
+  struct Reciept {
+	uint orderno;
 	}
   
   struct Item {
-		address item_addr;
-    bools exists;
-    address partner
+	address item_addr;
+    bool exists;
+    address partner;
     uint price;
     uint quantity;
 	}
@@ -46,11 +46,11 @@
 	// Storage variables 
   mapping (address => uint) wallets; 																													// HOLDS EACH EMPLOYEES WALLET BALANCE (ADDRESS USED TO REFER TO THE EMPLOYEE, UINT THEIR BALANCE)
   mapping (uint => Order) orders;
-	mapping (uint => Reciept) reciepts; 
-	mapping (uint => Partner) partners;
-	mapping (address => Employee) employees;
-  mapping (address => Item[]) 																																// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
-	mapping (uint => Item) items;
+  mapping (address => Reciept) reciepts; 
+  mapping (address => Partner) partners;
+  mapping (address => Employee) employees;
+  //mapping (address => Item[]) 																															// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
+  mapping (address => Item) items;
 
   address public company;            
   address public employeeAddr;
@@ -64,73 +64,72 @@
   
   
   // The constructor 
-	function BonusScheme(address _empAddr) public {
+	constructor(address _empAddr) public {
 		company = msg.sender;																																			// THE COMPANY IS THE OWNER OF THE CONTRACT ... OR SHOULD THE EMPLOYEE BE THE CONTR
 		employeeAddr = _empAddr;
 	}
   
   
-	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable checkFundsAvailiable returns(bool) {    
+	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable(_item) checkFundsAvailiable(_employee, _item) returns(bool) {    
 
     // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
     // Only the company is able to register new employees.
     if(!employees[_employee].registered) {
     	// registerEmployee(_employee);
-      revert(‘Employee not registered on bonus scheme.’);
+      revert("Employee not registered on bonus scheme.");
     }
     
-    ordersequence++;
+    require(items[_item].exists);
     
-    OrderPlaced(ordersequence, _employee, _item, items[_item].price);
-    sendReciept(ordersequence);
-    RecieptSent(ordersequence);
-    pay(_employee, ordersequence, items[_item].price);
+    ordersequence++;
+ //   address amount = items[_item].price;
+    
+    
+    emit OrderPlaced(ordersequence, _employee, _item, items[_item].price);
+   // sendReciept(ordersequence);
+    emit RecieptSent(ordersequence);
+    pay(_employee, ordersequence, _item);
     
     return true;
   }
   
-  function sendReciept(uint _orderno) {
-  	
-  	  
-  }
+  // function sendReciept(uint _orderno) {}
   
   
-  function pay(address _employee, uint _orderno, uint amount) employeeOnly checkFundsAvailiable {
+  function pay(address _employee, uint _orderno, address _item) employeeOnly checkFundsAvailiable(_employee, _item) public {
   	require(orders[_orderno].init);
-  	wallets[_employee] -= amount;
-    PaymentSent(_employee, _orderno, amount)
+  	wallets[_employee] -= items[_item].price;
+    emit  PaymentSent(_employee, _orderno, items[_item].price);
   }
   
-  function reject() {
-  
-  }
+  // function reject() {}
   
   // AD HOc REWARD PAYMENT
-  function payEmployee(address _employee, uint _amount) companyOnly {
+  function payEmployee(address _employee, uint _amount) companyOnly public {
     
     require(_amount > 0);
     
     if(employees[_employee].registered) {
       wallets[_employee] += _amount;    
     } else {
-    	registerEmployees(_employee);
+    	registerEmployee(_employee);
       payEmployee(_employee, _amount);
     }
     
-    EmployeePaid(_employee, _amount);
+    emit EmployeePaid(_employee, _amount);
   }
   
-  function registerEmployee(address _employee) companyOnly {
+  function registerEmployee(address _employee) companyOnly public {
     employees[_employee] = Employee(_employee, true);  
   }
   
-  function addPartner(address _partner) companyOnly {
+  function addPartner(address _partner) companyOnly public {
     if(!partners[_partner].registered) {
       partners[_partner] = Partner(_partner, true);
     }
   }
   
-  function addItem(address _item, address _partner, uint _price, uint _quantity) companyOnly {      
+  function addItem(address _item, address _partner, uint _price, uint _quantity) companyOnly public {      
     if(!items[_item].exists) {
       items[_item] = Item(_item, true, _partner, _price, _quantity);
     } else {
@@ -139,18 +138,18 @@
   }
   
   // TODO
-  function removeEmployee(address _employee) companyOnly {
-  	delete user[someAddress];
+  function removeEmployee(address _employee) companyOnly public {
+  	delete employees[_employee];
   }
   
   // TODO
-  function removePartner(address _employee) isPartner companyOnly {
-  	delete user[someAddress];
+  function removePartner(address _partner) isPartner(_partner) companyOnly public {
+  	delete partners[_partner];
   }
   
   // TODO
-  function removeItem(address _employee) companyOnly {
-  	delete user[someAddress];
+  function removeItem(address _item) companyOnly public {
+  	delete items[_item];
   }
   
   ///////////////
