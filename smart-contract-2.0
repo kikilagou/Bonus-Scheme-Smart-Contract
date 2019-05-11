@@ -36,7 +36,8 @@
   struct Partner {
 	address parner_addr;
 	string parner_name;
-	uint[] items;
+	//uint[] items;
+	mapping (uint => uint) items;
     bool registered;
 	}
 
@@ -75,10 +76,12 @@
   event EmployeeRemovalFailed(address employee);
   event EmployeePaid(address employee, uint amount);
   
-  event ItemRegistered(uint item_id);
+  event ItemRegistered(uint item_id); 
   event ItemRemovedFromRegister(uint item_id);
   event ItemRegistrationFailed(uint item_id);
   event ItemRemovalFailed(uint item_id);
+  event ItemIncremented(uint item_id);
+  event ItemIncrementFailed(uint item_id);
   
   event PartnerRegistered(address partner);
   event PartnerRegistrationFailed(address partner);
@@ -115,7 +118,6 @@
     
     /**
           @notice Register a new item. In order to register an item, the company that provides it must already be a partner otherwise product registration fails. Only the company can register a new item.
-          @param item_id - item ID
           @param item_name - item name
           @param description - item description
           @param exists - boolean to signify item is registered
@@ -131,21 +133,81 @@
         var item = Item(itemsequence, _item_name, _description, _exists, _partner_addr, _price, _quantity);
         
         // Check that the item is not already registered, if it is fail. 
-        if (!items[itemsequence].exists && checkItemValidity(item)) {
-            
+        if (!items[itemsequence].exists && checkItemIsValid(item)) {
             items[itemsequence] = item;
-            
             ItemRegistered(itemsequence);
-
+            
             return true;
         }
-
         ItemRegistrationFailed(itemsequence);
-
+        
         return false;
     }
     
+     /**
+          @notice Checks an item is valid. 
+          @param item - Item struct
+          @return valid
+    */
+    function checkItemIsValid(Item item) private returns (bool valid) {
+       return (item.price > 0);
+    }
     
+    /**
+          @notice Increment amount of existing item. Only the company can do this. Item must already be registered.
+          @param item_id - item ID
+          @param amount - number of item added
+          @return success
+
+    */
+    function incrementItemInventory(uint item_id, uint amount) companyOnly, checkItemRegistered(item_id) returns (bool success) {
+        
+            items[item_id].quantity += amount;
+            ItemIncremented(item_id);
+            
+            return true;
+    }
+    
+     /**
+          @notice Removes an item from the list of availiable items. Only a company can do this.
+          @param _item_id - item id
+          @return success
+    */
+    function removeItemFromRegister(uint _item_id) companyOnly public returns (bool success)  {
+        
+        Item item = items[_item_id];
+        Partner partner = item.partner;
+        
+        if (item.item_id == _item_id && item.exists) {
+            delete items[_item_id];
+            delete partner.items[_item_id];
+            ItemRemovedFromRegister(_item_id);
+    
+            return true;
+      }
+      
+      ItemRemovalFailed(_item_id);
+
+      return false;
+    }    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable(_item) checkFundsAvailiable(_employee, _item) returns(bool) {    
 
     // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
@@ -216,11 +278,7 @@
   function removePartner(address _partner) isPartner(_partner) companyOnly public {
   	delete partners[_partner];
   }
-  
-  // TODO
-  function removeItem(address _item) companyOnly public {
-  	delete items[_item];
-  }
+
 
   ///////////////
   // MODIFIERS //
@@ -238,12 +296,12 @@
    _;
 	}
   
-  modifier checkItemAvailiable(address _item) {
+  modifier checkItemAvailiable(uint _item) {
    require(items[_item].exists && items[_item].quantity > 0);
    _;
 	}
 
-  modifier checkFundsAvailiable(address _employee, address _item) {
+  modifier checkFundsAvailiable(address _employee, uint _item) {
    require(wallets[_employee] >= items[_item].price);
    _;
 	}
@@ -257,6 +315,15 @@
    require(employees[_employee].registered);
    _;
 	}
+	
+  modifier checkItemRegistered(uint _item) returns(bool success) {
+   require(items[_item].exists);
+   if(!items[_item].exists) {
+    emit ItemIncrementFailed(_item);
+    return false;
+   }
+    _;
+    }
 
 
 }
