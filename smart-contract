@@ -2,7 +2,7 @@
   
   pragma solidity ^0.5.1;
   // https://medium.com/@adeyemitoluhi
-  contract BonusScheme {
+  contract ballot_test {
 	
   
   // Defining a struct for an order request 
@@ -138,7 +138,7 @@
   }
   
   // TODO
-  function removeEmployee(address _employee) companyOnly public {
+  function removeEmployee(address _employee) companyOnly employeeExists(_employee) public {
   	delete employees[_employee];
   }
   
@@ -182,5 +182,11 @@
    require(partners[_partner].registered);
    _;
 	}
+	
+  modifier employeeExists(address _employee) {
+   require(employees[_employee].registered);
+   _;
+	}
+
 
 }
