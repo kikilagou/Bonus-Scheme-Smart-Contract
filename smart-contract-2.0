@@ -7,6 +7,7 @@
   /* Bonus Scheme internals */
   address public company;            
   address public employeeAddr;
+  uint256 private company_funds;  // company balance
   
   // Defining a struct for an order request 
   struct Order {
@@ -109,6 +110,7 @@
 	constructor(address _empAddr) public {
 		company = msg.sender;																																			// THE COMPANY IS THE OWNER OF THE CONTRACT ... OR SHOULD THE EMPLOYEE BE THE CONTR
 		employeeAddr = _empAddr;
+		company_funds = 0;
 	}
     
     /**
@@ -352,8 +354,65 @@
         return (false, 0);
     }
     
+    /**
+        @notice Removes an item from the shopping cart
+        @param prod_pos_in_mapping Product's position in the internal mapping
+    */
+
+    function removeProductFromCart(uint _index_in_prod_map) employeeOnly {
+      /*if (msg.sender != owner) {*/
+        uint[] memory new_items_list = new uint[](employees[msg.sender].cart.items.length - 1);
+
+        var employeeItems = employees[msg.sender].cart.items;
+
+        for (uint i = 0; i < employeeItems.length; i++) {
+
+          if (i != _index_in_prod_map) {
+
+            new_items_list[i] = employeeItems[i];
+
+          } else {
+
+            employees[msg.sender].cart.total -= items[employeeItems[i]].price;
+
+            ItemRemovedFromCart(msg.sender, employeeItems[i]);
+
+          }
+
+        }
+
+        employees[msg.sender].cart.items = new_items_list;
+
+      /*}*/
+
+    }
     
-    
+     /**
+        @notice Invokes a checkout process that'll use the current shopping cart to
+        transfer balances between the current employee and the company
+        @return success
+
+    */
+
+    function checkoutCart() employeeOnly returns (bool success) {
+
+        Employee employee = employees[msg.sender];
+        unit paymentTotal = employee.cart.total;
+        
+        if(wallets[employee] >= paymentTotal && employee.cart.items.length > 0) {
+            wallets[employee] -= paymentTotal;
+            employee.cart = ShoppingCart(new unit[](0), 0);
+            company_funds += paymentTotal;
+            OrderPlaced(msg.sender, paymentTotal);
+            return true;
+        }
+
+        OrderFailed(msg.sender, wallets[employee], paymentTotal);
+        return false;
+
+    }
+
+
     
     
     
