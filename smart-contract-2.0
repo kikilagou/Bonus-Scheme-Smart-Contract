@@ -127,7 +127,7 @@
           @return success
 
     */
-    function registerItem(string _item_name, bytes32 _description, bool _exists, address _partner_addr, uint _price, uint _quantity) companyOnly, isPartner(_partner_addr) returns (bool success) {
+    function registerItem(string _item_name, bytes32 _description, address _partner_addr, uint _price, uint _quantity) companyOnly, isPartner(_partner_addr) returns (bool success) {
         
         itemsequence++;
         var item = Item(itemsequence, _item_name, _description, _exists, _partner_addr, _price, _quantity);
@@ -190,6 +190,31 @@
 
       return false;
     }    
+    
+
+    /**
+          @notice Registers a new employee of the bonus scheme. Only the company can do this.
+          @param _address new employee's address
+          @param _name employee's name
+          @param _balance employee's account balance
+          @return success
+    */
+    function registerEmployee(address _address, string _emp_name, uint _balance) companyOnly public returns (bool success) {
+        
+        if (_address != address(0)) {
+            ShoppingCart cart = ShoppingCart(new uint[](0), 0);
+            Employee employee = Employee(_address, _emp_name, cart, true);
+            
+            // create employee wallet
+            wallets[_address] = _balance;
+       
+            EmployeeRegistered(_address);
+            return true;
+            }
+            
+        EmployeeRegistrationFailed(_address);
+        return false;
+    }
     
     
     
@@ -257,9 +282,7 @@
     emit EmployeePaid(_employee, _amount);
   }
   
-  function registerEmployee(address _employee) companyOnly public {
-    employees[_employee] = Employee(_employee, true);  
-  }
+
   
   function addPartner(address _partner) companyOnly public {
     if(!partners[_partner].registered) {
