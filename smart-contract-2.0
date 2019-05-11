@@ -56,7 +56,6 @@
     uint quantity;
 	}
 
-
   uint private ordersequence;
 //  uint private partnersequence;
   uint private itemsequence;
@@ -74,6 +73,7 @@
   event EmployeeRegistrationFailed(address employee);
   event EmployeeRemovedFromRegister(address employee);
   event EmployeeRemovalFailed(address employee);
+  event EmployeePaid(address employee, uint amount);
   
   event ItemRegistered(uint item_id);
   event ItemRemovedFromRegister(uint item_id);
@@ -90,15 +90,13 @@
   event ItemRemovedFromCart(address employee, uint item_id);
   event OrderPlaced(address employee, uint order_total);
   event OrderFailed(address employee, uint employee_balance, uint cart_total);
-
   event CartEmptied(address employee);
 
 
   // event OrderPlaced(uint orderno, address employee, address item, uint total);
-  event RecieptSent(uint orderno);
-  event OrderCancelled(uint orderno);
-  event EmployeePaid(address employee, uint amount);
-  event PaymentSent(address employee, uint orderno, uint amount);
+  // event RecieptSent(uint orderno);
+  // event OrderCancelled(uint orderno);
+  // event PaymentSent(address employee, uint orderno, uint amount);
   
   
   // The constructor 
@@ -106,8 +104,7 @@
 		company = msg.sender;																																			// THE COMPANY IS THE OWNER OF THE CONTRACT ... OR SHOULD THE EMPLOYEE BE THE CONTR
 		employeeAddr = _empAddr;
 	}
-  
-  
+ 
 	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable(_item) checkFundsAvailiable(_employee, _item) returns(bool) {    
 
     // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
