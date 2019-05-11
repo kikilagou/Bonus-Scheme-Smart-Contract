@@ -53,7 +53,7 @@
 	// address item_addr;
 	uint item_id;
 	string name;
-	bytes32 description;
+	bytes description;
     bool exists;
     uint partner_id;
     uint price;
@@ -90,7 +90,7 @@
   event PartnerRegistered(uint partner_id);
   event PartnerRegistrationFailed(uint partner_id);
   event PartnerRemovedFromRegister(uint partner_id);
-  event PartnerRemovalFailed(address partner_id);
+  event PartnerRemovalFailed(uint partner_id);
   
   event ItemInsertedToCart(address employee, uint item_id, uint item_price, uint cart_total);
   event ItemInsertionToCartFailed(address employee, uint item_id);
@@ -123,19 +123,19 @@
           @return success
 
     */
-    function registerItem(string memory _item_name, bytes32 _description, uint _partner_id, uint _price, uint _quantity) companyOnly isPartner(_partner_id) public returns (bool success) {
+    function registerItem(string memory _item_name, bytes memory _description, uint _partner_id, uint _price, uint _quantity) companyOnly isPartner(_partner_id) public returns (bool success) {
         
         itemsequence++;
-        var item = Item(itemsequence, _item_name, _description, true, _partner_id, _price, _quantity);
+        Item memory item = Item(itemsequence, _item_name, _description, true, _partner_id, _price, _quantity);
         
         // Check that the item is not already registered, if it is fail. 
         if (!items[itemsequence].exists && checkItemIsValid(item)) {
             items[itemsequence] = item;
-            ItemRegistered(itemsequence);
+            emit ItemRegistered(itemsequence);
             
             return true;
         }
-        ItemRegistrationFailed(itemsequence);
+        emit ItemRegistrationFailed(itemsequence);
         
         return false;
     }
@@ -145,7 +145,7 @@
           @param item - Item struct
           @return valid
     */
-    function checkItemIsValid(Item memory item) private returns (bool valid) {
+    function checkItemIsValid(Item memory item) pure private returns (bool valid) {
        return (item.price > 0);
     }
     
@@ -158,12 +158,18 @@
     */
     function incrementItemInventory(uint _item_id, uint amount) companyOnly public checkItemRegistered(_item_id) returns (bool success) {
             
-            Partner memory partner = items[_item_id].partner;
+            Partner memory partner = partners[items[_item_id].partner_id];
             
+
             items[_item_id].quantity += amount;
-            partner.items[_item_id].quantity += amount;
             
-            ItemIncremented(_item_id);
+            for(uint i =0; i < partner.items.length; i++) {
+                if(partner.items[_item_id] == _item_id) {
+                    items[partner.items[_item_id]].quantity += amount;
+                }
+            }
+            
+            emit ItemIncremented(_item_id);
             
             return true;
     }
@@ -176,7 +182,7 @@
     function removeItemFromRegister(uint _item_id) companyOnly public returns (bool success)  {
         
         Item memory item = items[_item_id];
-        Partner memory partner = item.partner_id;
+        Partner storage partner = partners[item.partner_id];
         uint index; 
         
         if (item.item_id == _item_id && item.exists) {
@@ -199,12 +205,12 @@
             }
             partner.items.length--;
             
-            ItemRemovedFromRegister(_item_id);
+            emit ItemRemovedFromRegister(_item_id);
     
             return true;
       }
       
-      ItemRemovalFailed(_item_id);
+      emit ItemRemovalFailed(_item_id);
 
       return false;
     }    
@@ -222,14 +228,15 @@
             ShoppingCart memory cart = ShoppingCart(new uint[](0), 0);
             Employee memory employee = Employee(_address, _emp_name, cart, true);
             
+            employees[employee.emp_addr] = employee;
             // create employee wallet
             wallets[_address] = _balance;
        
-            EmployeeRegistered(_address);
+            emit EmployeeRegistered(_address);
             return true;
             }
             
-        EmployeeRegistrationFailed(_address);
+        emit EmployeeRegistrationFailed(_address);
         return false;
     }
     
@@ -244,10 +251,10 @@
         
         if (employee.emp_addr != address(0)) {
             delete employees[_employee];
-            EmployeeRemovedFromRegister(_employee);
+            emit EmployeeRemovedFromRegister(_employee);
             return true;
       }
-      EmployeeRemovalFailed(_employee);
+      emit EmployeeRemovalFailed(_employee);
       return false;
     }
     
@@ -258,20 +265,20 @@
           @param _items partner's item offerings
           @return success
     */
-    function registerPartner(string memory _partner_name,  mapping (uint => uint) memory _items) companyOnly public returns (bool success) {
+    function registerPartner(string memory _partner_name,  uint[] memory _items) companyOnly private returns (bool success) {
 
         require(!partners[partnersequence].registered);
         
         partnersequence++;
-        var partner = Partner(partnersequence, _partner_name, _items, true);
+        Partner memory partner = Partner(partnersequence, _partner_name, _items, true);
         
         if (!partners[partnersequence].registered) {
             partners[partnersequence] = partner;
-            PartnerRegistered(partnersequence);
+            emit PartnerRegistered(partnersequence);
             
             return true;
         }
-        PartnerRegistrationFailed(partnersequence);
+        emit PartnerRegistrationFailed(partnersequence);
         
         return false;
     }
@@ -281,12 +288,12 @@
         @param _partner_id partners's id
         @return success
     */
-    function removePartner(address _partner_id) companyOnly isPartner(_partner_id) public returns (bool success) {
+    function removePartner(uint _partner_id) companyOnly isPartner(_partner_id) public returns (bool success) {
         
         Partner memory partner = partners[_partner_id];
         uint arrayLength = partner.items.length;
                 
-        if (partner.partner_id == _partner_id && partner.registered) {
+        if (partner.registered) {
             delete partners[_partner_id];
         
         // delete items with that partner id
@@ -294,11 +301,11 @@
             delete items[partner.items[i]];
         }
             
-        PartnerRemovedFromRegister(_partner_id);
+        emit PartnerRemovedFromRegister(_partner_id);
         return true;
       }
       
-      PartnerRemovalFailed(_partner_id);
+      emit PartnerRemovalFailed(_partner_id);
       return false;
     }    
 
@@ -308,7 +315,7 @@
         @param _amount amount to be added to employee's account
         @return success
     */
-    function payEmployee(address _employee, uint _amount) companyOnly employeeExists public returns (bool success) {
+    function payEmployee(address _employee, uint _amount) companyOnly employeeExists(_employee) public returns (bool success) {
     
         require(_amount > 0);
         
@@ -324,6 +331,14 @@
         return false;
     }
     
+    
+    function safeAdd(uint x, uint y) pure internal returns (uint) {
+        uint z = x + y;
+        assert(z >= x);
+        return z;
+    
+    }
+    
     /**
         @notice Inserts an item into an employee's shopping cart.
         This function returns a boolean and the position of the
@@ -335,7 +350,7 @@
 
     */
     function addItemToCart(uint _item_id) public returns (bool success, uint index_in_prod_map) {
-        Employee memory employee = employees[msg.sender];
+        Employee storage employee = employees[msg.sender];
         Item memory item = items[_item_id];
         uint prods_prev_len = employee.cart.items.length;
         employee.cart.items.push(item.item_id);
@@ -344,12 +359,12 @@
         
         if (employee.cart.items.length > prods_prev_len) {
 
-          ItemInsertedToCart(msg.sender, _item_id, item.price, employee.cart.total);
+          emit ItemInsertedToCart(msg.sender, _item_id, item.price, employee.cart.total);
 
           return (true, employee.cart.items.length - 1);
         }
         
-        ItemInsertionToCartFailed(msg.sender, _item_id);
+        emit ItemInsertionToCartFailed(msg.sender, _item_id);
 
         return (false, 0);
     }
@@ -363,7 +378,7 @@
       /*if (msg.sender != owner) {*/
         uint[] memory new_items_list = new uint[](employees[msg.sender].cart.items.length - 1);
 
-        var employeeItems = employees[msg.sender].cart.items;
+        uint[] memory employeeItems = employees[msg.sender].cart.items;
 
         for (uint i = 0; i < employeeItems.length; i++) {
 
@@ -375,7 +390,7 @@
 
             employees[msg.sender].cart.total -= items[employeeItems[i]].price;
 
-            ItemRemovedFromCart(msg.sender, employeeItems[i]);
+            emit ItemRemovedFromCart(msg.sender, employeeItems[i]);
 
           }
 
@@ -398,15 +413,15 @@
         Employee memory employee = employees[msg.sender];
         uint paymentTotal = employee.cart.total;
         
-        if(wallets[employee] >= paymentTotal && employee.cart.items.length > 0) {
-            wallets[employee] -= paymentTotal;
+        if(wallets[employee.emp_addr] >= paymentTotal && employee.cart.items.length > 0) {
+            wallets[employee.emp_addr] -= paymentTotal;
             employee.cart = ShoppingCart(new uint[](0), 0);
             company_funds += paymentTotal;
-            OrderPlaced(msg.sender, paymentTotal);
+            emit OrderPlaced(msg.sender, paymentTotal);
             return true;
         }
 
-        OrderFailed(msg.sender, wallets[employee], paymentTotal);
+        emit OrderFailed(msg.sender, wallets[employee.emp_addr], paymentTotal);
         return false;
     }
     
@@ -421,7 +436,7 @@
 
         employee.cart = ShoppingCart(new uint[](0), 0);
 
-        CartEmptied(employee.emp_addr);
+        emit CartEmptied(employee.emp_addr);
 
         return true;
 
@@ -432,10 +447,10 @@
         @param _item_id Product ID
         @return (name, description, price, default_amount)
     */
-    function getItem(uint _item_id) pure public returns (string memory name, bytes memory description, uint price, uint partner, uint quantity) {
+    function getItem(uint _item_id) view public returns (string memory name, bytes memory description, uint price, string memory partner, uint quantity) {
     
-        require(items[_item_id].exists);
-       return (items[_item_id].name, items[_item_id].description, items[_item_id].price, items[_item_id].partner, items[_item_id].quantity);
+       require(items[_item_id].exists);
+       return (items[_item_id].name, items[_item_id].description, items[_item_id].price, partners[items[_item_id].partner_id].parner_name, items[_item_id].quantity);
 
     }
 
@@ -444,7 +459,7 @@
         The caller address must be a registered customer.
         @return (product_ids, complete_sum)
     */
-    function getCart() pure public returns (uint[] memory item_ids, uint total) {
+    function getCart() view public returns (uint[] memory item_ids, uint total) {
 
       Employee memory employee = employees[msg.sender];
 
@@ -467,7 +482,7 @@
           @return _balance Customer's balance
 
     */
-    function getBalance() employeeOnly pure public returns (uint _balance) {
+    function getBalance() employeeOnly view public returns (uint _balance) {
 
       return wallets[msg.sender];
 
@@ -478,7 +493,7 @@
           @return store_balance Store's current balance
 
     */
-    function getCompanyBalance() companyOnly pure public returns (uint) {
+    function getCompanyBalance() companyOnly view public returns (uint) {
 
       return company_funds;
 
