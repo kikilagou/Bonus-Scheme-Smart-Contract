@@ -36,8 +36,10 @@
   struct Partner {
 	unit parner_id;
 	string parner_name;
-	//uint[] items;
-	mapping (uint => uint) items;
+	// holds item ids
+	uint[] items;
+	// item id - number
+//	mapping (uint => uint) items;
     bool registered;
 	}
 
@@ -75,6 +77,7 @@
   event EmployeeRemovedFromRegister(address employee);
   event EmployeeRemovalFailed(address employee);
   event EmployeePaid(address employee, uint amount);
+  event EmployeePaymentFailed(address employee);
   
   event ItemRegistered(uint item_id); 
   event ItemRemovedFromRegister(uint item_id);
@@ -119,7 +122,7 @@
           @return success
 
     */
-    function registerItem(string _item_name, bytes32 _description, uint _partner_id, uint _price, uint _quantity) companyOnly, isPartner(_partner_id) returns (bool success) {
+    function registerItem(string _item_name, bytes32 _description, uint _partner_id, uint _price, uint _quantity) companyOnly isPartner(_partner_id) returns (bool success) {
         
         itemsequence++;
         var item = Item(itemsequence, _item_name, _description, _exists, _partner_id, _price, _quantity);
@@ -172,11 +175,28 @@
     function removeItemFromRegister(uint _item_id) companyOnly public returns (bool success)  {
         
         Item item = items[_item_id];
-        Partner partner = item.partner;
+        Partner partner = item.partner_id;
         
         if (item.item_id == _item_id && item.exists) {
             delete items[_item_id];
-            delete partner.items[_item_id];
+            
+            
+            // iterate through and delete the item from the partner's listing of items
+            for(i = 0; i < partner.items.length; i++) {
+                if(partner.items[i] == _item_id) {
+                    // remove the item from the partner array // BUT THIS LEAVES A GAP
+                    //delete array[index];
+                    uint index = i;
+                }
+            }
+            
+            // manually get rid of the gap left by removing the item in the partner's listing of item 
+            if (index >= array.length) return false;
+            for (uint i = index; i< partner.items.length-1; i++){
+                partner.items[i] = partner.items[i+1];
+            }
+            partner.items.length--;
+            
             ItemRemovedFromRegister(_item_id);
     
             return true;
@@ -262,28 +282,45 @@
     function removePartner(address _partner_id) companyOnly isPartner(_partner_id) public returns (bool success) {
         
         Partner partner = partners[_partner_id];
-
+        uint arrayLength = partner.items.length;
+                
         if (partner.partner_id == _partner_id && partner.registered) {
             delete partners[_partner_id];
+        
+        // delete items with that partner id
+        for (uint i = 0; i < arrayLength; i++) {
+            delete items[partner.items[i]]
+        }
             
-            delete items[]
-            
-            
-            ItemRemovedFromRegister(_item_id);
-    
-            return true;
+        PartnerRemovedFromRegister(_partner_id);
+        return true;
       }
       
-      ItemRemovalFailed(_item_id);
-
+      PartnerRemovalFailed(_partner_id);
       return false;
     }    
+
+    /**
+        @notice Ad hoc reward payment into employee's balance. Done when company adds reward to employees account.
+        @param _employee employee's id
+        @param _amount amount to be added to employee's account
+        @return success
+    */
+    function payEmployee(address _employee, uint _amount) companyOnly employeeExists public returns (bool success) {
     
-    
-    
-    
-    
-    
+        require(_amount > 0);
+        
+        if(employees[_employee].registered) {
+          wallets[_employee] += _amount;
+          
+          emit EmployeePaid(_employee, _amount);
+          return true;
+          
+        }
+        
+        emit EmployeePaymentFailed(_employee);
+        return false;
+    }
     
     
     
@@ -360,25 +397,6 @@
   	wallets[_employee] -= items[_item].price;
     emit  PaymentSent(_employee, _orderno, items[_item].price);
   }
-  
-  // function reject() {}
-  
-  // AD HOc REWARD PAYMENT
-  function payEmployee(address _employee, uint _amount) companyOnly public {
-    
-    require(_amount > 0);
-    
-    if(employees[_employee].registered) {
-      wallets[_employee] += _amount;    
-    } else {
-    	registerEmployee(_employee);
-      payEmployee(_employee, _amount);
-    }
-    
-    emit EmployeePaid(_employee, _amount);
-  }
-  
-
 
 
   ///////////////
