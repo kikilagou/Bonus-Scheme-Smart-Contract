@@ -12,7 +12,7 @@
   struct Order {
     uint order_id;
     address employee;
-	address partner;
+	uint partner_id;
 	uint[] items;
 	// uint quantity;
 	uint price;
@@ -34,7 +34,7 @@
   }
 
   struct Partner {
-	address parner_addr;
+	unit parner_id;
 	string parner_name;
 	//uint[] items;
 	mapping (uint => uint) items;
@@ -52,19 +52,19 @@
 	string name;
 	bytes32 description;
     bool exists;
-    address partner;
+    uint partner_id;
     uint price;
     uint quantity;
 	}
 
   uint private ordersequence;
-//  uint private partnersequence;
   uint private itemsequence;
+  uint private partnersequence;
 
 	// Storage variables 
   mapping (address => uint) wallets; 																													// HOLDS EACH EMPLOYEES WALLET BALANCE (ADDRESS USED TO REFER TO THE EMPLOYEE, UINT THEIR BALANCE)
   mapping (uint => Order) orders;
-  mapping (address => Partner) partners;
+  mapping (uint => Partner) partners;
   mapping (address => Employee) employees;
   mapping (uint => Item) items;
   //mapping (address => Item[]) 																															// THE ADDRESS WILL BE THE ADDRESS OF THE PARTNER
@@ -83,10 +83,10 @@
   event ItemIncremented(uint item_id);
   event ItemIncrementFailed(uint item_id);
   
-  event PartnerRegistered(address partner);
-  event PartnerRegistrationFailed(address partner);
-  event PartnerRemovedFromRegister(address partner);
-  event PartnerRemovalFailed(address partner);
+  event PartnerRegistered(uint partner_id);
+  event PartnerRegistrationFailed(uint partner_id);
+  event PartnerRemovedFromRegister(uint partner_id);
+  event PartnerRemovalFailed(address partner_id);
   
   event ItemInsertedToCart(address employee, uint item_id, uint item_price, uint cart_total);
   event ItemInsertionToCartFailed(address employee, uint item_id);
@@ -107,14 +107,6 @@
 		company = msg.sender;																																			// THE COMPANY IS THE OWNER OF THE CONTRACT ... OR SHOULD THE EMPLOYEE BE THE CONTR
 		employeeAddr = _empAddr;
 	}
-	
-    // function registerItem(address _item, address _partner, uint _price, uint _quantity) companyOnly public {      
-    //     if(!items[_item].exists) {
-    //       items[_item] = Item(_item, true, _partner, _price, _quantity);
-    //     } else {
-    //     	items[_item].quantity += _quantity;
-    //     }
-    //   }
     
     /**
           @notice Register a new item. In order to register an item, the company that provides it must already be a partner otherwise product registration fails. Only the company can register a new item.
@@ -127,10 +119,10 @@
           @return success
 
     */
-    function registerItem(string _item_name, bytes32 _description, address _partner_addr, uint _price, uint _quantity) companyOnly, isPartner(_partner_addr) returns (bool success) {
+    function registerItem(string _item_name, bytes32 _description, uint _partner_id, uint _price, uint _quantity) companyOnly, isPartner(_partner_id) returns (bool success) {
         
         itemsequence++;
-        var item = Item(itemsequence, _item_name, _description, _exists, _partner_addr, _price, _quantity);
+        var item = Item(itemsequence, _item_name, _description, _exists, _partner_id, _price, _quantity);
         
         // Check that the item is not already registered, if it is fail. 
         if (!items[itemsequence].exists && checkItemIsValid(item)) {
@@ -161,8 +153,12 @@
 
     */
     function incrementItemInventory(uint item_id, uint amount) companyOnly, checkItemRegistered(item_id) returns (bool success) {
-        
+            
+            Partner partner = items[_item_id].partner;
+            
             items[item_id].quantity += amount;
+            partner.items[_item_id].quantity += amount;
+            
             ItemIncremented(item_id);
             
             return true;
@@ -191,7 +187,6 @@
       return false;
     }    
     
-
     /**
           @notice Registers a new employee of the bonus scheme. Only the company can do this.
           @param _address new employee's address
@@ -216,6 +211,107 @@
         return false;
     }
     
+    /**
+        @notice Removes an employee from the bonus scheme, only a company can do this
+        @param _employee employee's address
+        @return success
+    */
+    function removeEmployee(address _employee) companyOnly employeeExists(_employee) public returns (bool success) {
+        
+        Employee employee = employees[_employee];
+        
+        if (employee.emp_addr != address(0)) {
+            delete employees[_employee];
+            EmployeeRemovedFromRegister(_employee);
+            return true;
+      }
+      EmployeeRemovalFailed(_employee);
+      return false;
+    }
+    
+    
+    /**
+          @notice Registers a new partner of the bonus scheme. Only the company can do this.
+          @param _partner_name partner's name
+          @param _items partner's item offerings
+          @return success
+    */
+    function registerPartner(string _partner_name, mapping (uint => uint) _items) companyOnly public returns (bool success) {
+
+        require(!partners[partnersequence].registered);
+        
+        partnersequence++;
+        var partner = Partner(partnersequence, _partner_name, _items, true);
+        
+        if (!partners[partnersequence].registered)) {
+            partners[partnersequence] = partner;
+            PartnerRegistered(partnersequence);
+            
+            return true;
+        }
+        PartnerRegistrationFailed(partnersequence);
+        
+        return false;
+    }
+    
+    /**
+        @notice Removes a partner company from the bonus scheme, only a company can do this
+        @param _partner_id partners's id
+        @return success
+    */
+    function removePartner(address _partner_id) companyOnly isPartner(_partner_id) public returns (bool success) {
+        
+        Partner partner = partners[_partner_id];
+
+        if (partner.partner_id == _partner_id && partner.registered) {
+            delete partners[_partner_id];
+            
+            delete items[]
+            
+            
+            ItemRemovedFromRegister(_item_id);
+    
+            return true;
+      }
+      
+      ItemRemovalFailed(_item_id);
+
+      return false;
+    }    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
     
     
 
@@ -283,24 +379,6 @@
   }
   
 
-  
-  function addPartner(address _partner) companyOnly public {
-    if(!partners[_partner].registered) {
-      partners[_partner] = Partner(_partner, true);
-    }
-  }
-  
-  
-  
-  // TODO
-  function removeEmployee(address _employee) companyOnly employeeExists(_employee) public {
-  	delete employees[_employee];
-  }
-  
-  // TODO
-  function removePartner(address _partner) isPartner(_partner) companyOnly public {
-  	delete partners[_partner];
-  }
 
 
   ///////////////
@@ -329,7 +407,7 @@
    _;
 	}
 
-  modifier isPartner(address _partner) {
+  modifier isPartner(uint _partner) {
    require(partners[_partner].registered);
    _;
 	}
