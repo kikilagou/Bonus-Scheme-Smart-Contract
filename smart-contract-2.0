@@ -489,8 +489,8 @@
     }
     
     /**
-          @notice Returns stores's own balance
-          @return store_balance Store's current balance
+          @notice Returns company's own balance
+          @return comapny funds company's current balance
 
     */
     function getCompanyBalance() companyOnly view public returns (uint) {
