@@ -35,7 +35,7 @@
   }
 
   struct Partner {
-	unit parner_id;
+	uint parner_id;
 	string parner_name;
 	// holds item ids
 	uint[] items;
@@ -115,19 +115,18 @@
     
     /**
           @notice Register a new item. In order to register an item, the company that provides it must already be a partner otherwise product registration fails. Only the company can register a new item.
-          @param item_name - item name
-          @param description - item description
-          @param exists - boolean to signify item is registered
-          @param partner_addr - address of partner that supplied the item
-          @param price - item price
-          @param quantity - the number of this item that exists
+          @param _item_name - item name
+          @param _description - item description
+          @param _partner_id - address of partner that supplied the item
+          @param _price - item price
+          @param _quantity - the number of this item that exists
           @return success
 
     */
-    function registerItem(string _item_name, bytes32 _description, uint _partner_id, uint _price, uint _quantity) companyOnly isPartner(_partner_id) returns (bool success) {
+    function registerItem(string memory _item_name, bytes32 _description, uint _partner_id, uint _price, uint _quantity) companyOnly isPartner(_partner_id) public returns (bool success) {
         
         itemsequence++;
-        var item = Item(itemsequence, _item_name, _description, _exists, _partner_id, _price, _quantity);
+        var item = Item(itemsequence, _item_name, _description, true, _partner_id, _price, _quantity);
         
         // Check that the item is not already registered, if it is fail. 
         if (!items[itemsequence].exists && checkItemIsValid(item)) {
@@ -146,25 +145,25 @@
           @param item - Item struct
           @return valid
     */
-    function checkItemIsValid(Item item) private returns (bool valid) {
+    function checkItemIsValid(Item memory item) private returns (bool valid) {
        return (item.price > 0);
     }
     
     /**
           @notice Increment amount of existing item. Only the company can do this. Item must already be registered.
-          @param item_id - item ID
+          @param _item_id - item ID
           @param amount - number of item added
           @return success
 
     */
-    function incrementItemInventory(uint item_id, uint amount) companyOnly, checkItemRegistered(item_id) returns (bool success) {
+    function incrementItemInventory(uint _item_id, uint amount) companyOnly public checkItemRegistered(_item_id) returns (bool success) {
             
-            Partner partner = items[_item_id].partner;
+            Partner memory partner = items[_item_id].partner;
             
-            items[item_id].quantity += amount;
+            items[_item_id].quantity += amount;
             partner.items[_item_id].quantity += amount;
             
-            ItemIncremented(item_id);
+            ItemIncremented(_item_id);
             
             return true;
     }
@@ -176,24 +175,25 @@
     */
     function removeItemFromRegister(uint _item_id) companyOnly public returns (bool success)  {
         
-        Item item = items[_item_id];
-        Partner partner = item.partner_id;
+        Item memory item = items[_item_id];
+        Partner memory partner = item.partner_id;
+        uint index; 
         
         if (item.item_id == _item_id && item.exists) {
             delete items[_item_id];
             
             
             // iterate through and delete the item from the partner's listing of items
-            for(i = 0; i < partner.items.length; i++) {
+            for(uint i = 0; i < partner.items.length; i++) {
                 if(partner.items[i] == _item_id) {
                     // remove the item from the partner array // BUT THIS LEAVES A GAP
                     //delete array[index];
-                    uint index = i;
+                    index = i;
                 }
             }
             
             // manually get rid of the gap left by removing the item in the partner's listing of item 
-            if (index >= array.length) return false;
+            if (index >= partner.items.length) return false;
             for (uint i = index; i< partner.items.length-1; i++){
                 partner.items[i] = partner.items[i+1];
             }
@@ -212,15 +212,15 @@
     /**
           @notice Registers a new employee of the bonus scheme. Only the company can do this.
           @param _address new employee's address
-          @param _name employee's name
+          @param _emp_name employee's name
           @param _balance employee's account balance
           @return success
     */
-    function registerEmployee(address _address, string _emp_name, uint _balance) companyOnly public returns (bool success) {
+    function registerEmployee(address _address, string memory _emp_name, uint _balance) companyOnly public returns (bool success) {
         
         if (_address != address(0)) {
-            ShoppingCart cart = ShoppingCart(new uint[](0), 0);
-            Employee employee = Employee(_address, _emp_name, cart, true);
+            ShoppingCart memory cart = ShoppingCart(new uint[](0), 0);
+            Employee memory employee = Employee(_address, _emp_name, cart, true);
             
             // create employee wallet
             wallets[_address] = _balance;
@@ -240,7 +240,7 @@
     */
     function removeEmployee(address _employee) companyOnly employeeExists(_employee) public returns (bool success) {
         
-        Employee employee = employees[_employee];
+        Employee memory employee = employees[_employee];
         
         if (employee.emp_addr != address(0)) {
             delete employees[_employee];
@@ -258,14 +258,14 @@
           @param _items partner's item offerings
           @return success
     */
-    function registerPartner(string _partner_name, mapping (uint => uint) _items) companyOnly public returns (bool success) {
+    function registerPartner(string memory _partner_name,  mapping (uint => uint) memory _items) companyOnly public returns (bool success) {
 
         require(!partners[partnersequence].registered);
         
         partnersequence++;
         var partner = Partner(partnersequence, _partner_name, _items, true);
         
-        if (!partners[partnersequence].registered)) {
+        if (!partners[partnersequence].registered) {
             partners[partnersequence] = partner;
             PartnerRegistered(partnersequence);
             
@@ -283,7 +283,7 @@
     */
     function removePartner(address _partner_id) companyOnly isPartner(_partner_id) public returns (bool success) {
         
-        Partner partner = partners[_partner_id];
+        Partner memory partner = partners[_partner_id];
         uint arrayLength = partner.items.length;
                 
         if (partner.partner_id == _partner_id && partner.registered) {
@@ -291,7 +291,7 @@
         
         // delete items with that partner id
         for (uint i = 0; i < arrayLength; i++) {
-            delete items[partner.items[i]]
+            delete items[partner.items[i]];
         }
             
         PartnerRemovedFromRegister(_partner_id);
@@ -334,9 +334,9 @@
         @return (success, index_in_prod_map)
 
     */
-    function addItemToCart(uint _item_id) returns (bool success, uint index_in_prod_map) {
-        Employee employee = employees[msg.sender];
-        Item item = items[_item_id];
+    function addItemToCart(uint _item_id) public returns (bool success, uint index_in_prod_map) {
+        Employee memory employee = employees[msg.sender];
+        Item memory item = items[_item_id];
         uint prods_prev_len = employee.cart.items.length;
         employee.cart.items.push(item.item_id);
         uint curr_total = employee.cart.total;
@@ -356,10 +356,10 @@
     
     /**
         @notice Removes an item from the shopping cart
-        @param prod_pos_in_mapping Product's position in the internal mapping
+        @param _index_in_prod_map Product's position in the internal mapping
     */
 
-    function removeProductFromCart(uint _index_in_prod_map) employeeOnly {
+    function removeProductFromCart(uint _index_in_prod_map) employeeOnly public {
       /*if (msg.sender != owner) {*/
         uint[] memory new_items_list = new uint[](employees[msg.sender].cart.items.length - 1);
 
@@ -393,14 +393,14 @@
         @return success
 
     */
-    function checkoutCart() employeeOnly returns (bool success) {
+    function checkoutCart() employeeOnly public returns (bool success) {
 
-        Employee employee = employees[msg.sender];
-        unit paymentTotal = employee.cart.total;
+        Employee memory employee = employees[msg.sender];
+        uint paymentTotal = employee.cart.total;
         
         if(wallets[employee] >= paymentTotal && employee.cart.items.length > 0) {
             wallets[employee] -= paymentTotal;
-            employee.cart = ShoppingCart(new unit[](0), 0);
+            employee.cart = ShoppingCart(new uint[](0), 0);
             company_funds += paymentTotal;
             OrderPlaced(msg.sender, paymentTotal);
             return true;
@@ -415,11 +415,11 @@
           @notice Empties the shopping cart
           @return success
     */
-    function emptyCart() employeeOnly returns (bool success) {
+    function emptyCart() employeeOnly public returns (bool success) {
 
-        Employee employee = employees[msg.sender];
+        Employee memory employee = employees[msg.sender];
 
-        employee.cart = Cart(new unit[](0), 0);
+        employee.cart = ShoppingCart(new uint[](0), 0);
 
         CartEmptied(employee.emp_addr);
 
@@ -429,10 +429,10 @@
     
     /**
         @notice Returns a elements describing a product
-        @param id Product ID
+        @param _item_id Product ID
         @return (name, description, price, default_amount)
     */
-    function getItem(uint _item_id) constant returns (string name, bytes description, uint price, uint partner, uint quantity) {
+    function getItem(uint _item_id) pure public returns (string memory name, bytes memory description, uint price, uint partner, uint quantity) {
     
         require(items[_item_id].exists);
        return (items[_item_id].name, items[_item_id].description, items[_item_id].price, items[_item_id].partner, items[_item_id].quantity);
@@ -444,9 +444,9 @@
         The caller address must be a registered customer.
         @return (product_ids, complete_sum)
     */
-    function getCart() constant returns (uint[] memory item_ids, uint total) {
+    function getCart() pure public returns (uint[] memory item_ids, uint total) {
 
-      Employee employee = employees[msg.sender];
+      Employee memory employee = employees[msg.sender];
 
       uint len = employee.cart.items.length;
 
@@ -467,7 +467,7 @@
           @return _balance Customer's balance
 
     */
-    function getBalance() employeeOnly constant returns (uint _balance) {
+    function getBalance() employeeOnly pure public returns (uint _balance) {
 
       return wallets[msg.sender];
 
@@ -478,83 +478,11 @@
           @return store_balance Store's current balance
 
     */
-    function getCompanyBalance() companyOnly constant returns (uint) {
+    function getCompanyBalance() companyOnly pure public returns (uint) {
 
       return company_funds;
 
     }
-
-
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	function placeOrder(address _employee, address _item) public payable employeeOnly checkItemAvailiable(_item) checkFundsAvailiable(_employee, _item) returns(bool) {    
-
-    // IF THE EMPLOYEE DOES NOT HAVE AN ACCOUNT ON THE BONUS SCHEME, CREATE AN ACCOUNT FOR THEM BY ADDING THEM TO THE EMPLOYEES MAPPING
-    // Only the company is able to register new employees.
-    if(!employees[_employee].registered) {
-    	// registerEmployee(_employee);
-      revert("Employee not registered on bonus scheme.");
-    }
-    
-    require(items[_item].exists);
-    
-    ordersequence++;
- //   address amount = items[_item].price;
-    
-    
-    emit OrderPlaced(ordersequence, _employee, _item, items[_item].price);
-   // sendReciept(ordersequence);
-    emit RecieptSent(ordersequence);
-    pay(_employee, ordersequence, _item);
-    
-    return true;
-  }
-  
-  // function sendReciept(uint _orderno) {}
-  
-  
-  function pay(address _employee, uint _orderno, address _item) employeeOnly checkFundsAvailiable(_employee, _item) public {
-  	require(orders[_orderno].init);
-  	wallets[_employee] -= items[_item].price;
-    emit  PaymentSent(_employee, _orderno, items[_item].price);
-  }
-
 
   ///////////////
   // MODIFIERS //
@@ -576,12 +504,14 @@
    require(items[_item].exists && items[_item].quantity > 0);
    _;
 	}
+	
 
   modifier checkFundsAvailiable(address _employee, uint total) {
-   require(wallets[_employee] >= total;
+   require(wallets[_employee] >= total);
    _;
-	}
-
+      
+  }
+	
   modifier isPartner(uint _partner) {
    require(partners[_partner].registered);
    _;
@@ -592,11 +522,10 @@
    _;
 	}
 	
-  modifier checkItemRegistered(uint _item) returns(bool success) {
+  modifier checkItemRegistered(uint _item) {
    require(items[_item].exists);
    if(!items[_item].exists) {
     emit ItemIncrementFailed(_item);
-    return false;
    }
     _;
     }
